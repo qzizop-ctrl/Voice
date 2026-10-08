@@ -144,13 +144,19 @@ export default function App() {
     stopPlay(); setBusy(true); setMsg('جاري التنقية بالذكاء الاصطناعي (RNNoise)...');
     try {
       const { rnnoiseClean, RNNOISE_RATE } = await import('./dsp/rnnoise.js');
-      const o = await rnnoiseClean(raw.current);
-      orig.current = cur.current = mkBuf(o, RNNOISE_RATE);
+      const { data } = await rnnoiseClean(raw.current, setMsg);
+      orig.current = cur.current = mkBuf(data, RNNOISE_RATE);
       harm.current = null; bump();
       setMsg('تمت التنقية بـ RNNoise. اضغط تشغيل.');
     } catch (e) {
+      // التسجيل ما بيتمسحش: نرجع للتنقية العادية لو RNNoise ما اشتغلش صح
       console.error(e);
-      setMsg('تعذر تشغيل RNNoise على هذا الجهاز. استخدم التنقية القوية العادية.');
+      try {
+        const o = denoise(raw.current.getChannelData(0), ns / 100);
+        orig.current = cur.current = mkBuf(o, raw.current.sampleRate);
+        harm.current = null; bump();
+        setMsg('RNNoise ما اشتغلش صح على جهازك (كان بيطلع صوت فاضي)، فطبّقت التنقية القوية العادية بدالها.');
+      } catch (e2) { setMsg('تعذرت التنقية. التسجيل الأصلي ما اتغيرش.'); }
     }
     setBusy(false);
   };
