@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPlayer, exportWav, getCtx, startRecording } from './audio/engine.js';
 import { autotune, detect, harmShifts, makeAllowed, render } from './dsp/pitch.js';
 import { denoise } from './dsp/denoise.js';
+import { DEFAULT_FX, PRESETS, REVERB_TYPES } from './presets.js';
 import { saveWav } from './export.js';
 
 const KEYS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -26,11 +27,11 @@ function drawWave(cv, data) {
   }
 }
 
-function Slider({ label, value, unit = '%', onChange, min = 0, max = 100 }) {
+function Slider({ label, value, unit = '', onChange, min = 0, max = 100, step = 1 }) {
   return (
     <>
       <label><span>{label}</span><span>{value}{unit}</span></label>
-      <input type="range" min={min} max={max} value={value} onChange={(e) => onChange(+e.target.value)} />
+      <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(+e.target.value)} />
     </>
   );
 }
@@ -49,23 +50,25 @@ function Select({ label, value, onChange, options }) {
 export default function App() {
   const cv = useRef(null), raf = useRef(0), player = useRef(null);
   const rec = useRef(null), raw = useRef(null), orig = useRef(null), cur = useRef(null), harm = useRef(null);
-  const [msg, setMsg] = useState('اضغط تسجيل وابدأ الغناء أو الكلام.');
+  const [msg, setMsg] = useState('اضغط تسجيل وابدأ الغناء أو الكلام. يُفضّل استخدام سماعة سلكية.');
   const [recording, setRecording] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [busy, setBusy] = useState(false);
   const [ver, setVer] = useState(0);
   const [micNs, setMicNs] = useState(true);
-  const [fx, setFx] = useState({ mix: 35, size: 18, hp: 80 });
+  const [fx, setFx] = useState(DEFAULT_FX);
   const [ns, setNs] = useState(70);
-  const [tune, setTune] = useState({ key: '0', scale: SCALES[0][1], str: 100, spd: 70 });
+  const [tune, setTune] = useState({ key: '0', scale: SCALES[0][1], str: 100, spd: 70, vib: 40 });
   const [hint, setHint] = useState('2');
   const [hvol, setHvol] = useState(60);
 
   if (!player.current) player.current = createPlayer();
   const hasAudio = !!cur.current;
   const bump = () => setVer((v) => v + 1);
+  const F = (k) => (v) => setFx((f) => ({ ...f, [k]: v }));
 
   useEffect(() => { player.current.update(fx, hvol); }, [fx, hvol]);
+  useEffect(() => { player.current.setReverb(fx.rtype, fx.size); }, [fx.rtype, fx.size]);
   useEffect(() => { if (cur.current && cv.current) drawWave(cv.current, cur.current.getChannelData(0)); }, [ver]);
 
   const mkBuf = (data, sr) => {
@@ -106,7 +109,7 @@ export default function App() {
         const b = await rec.current.stop();
         raw.current = orig.current = cur.current = b;
         harm.current = null;
-        setMsg(`تم التسجيل (${b.duration.toFixed(1)} ث). اضغط تشغيل وحرّك الشرائط.`);
+        setMsg(`تم التسجيل (${b.duration.toFixed(1)} ث${rec.current.mode === 'pcm' ? '، جودة خام بدون ضغط' : ''}). اضغط تشغيل.`);
       } catch (e) { setMsg('فشل قراءة التسجيل، جرّب مرة تانية.'); }
       bump();
       return;
@@ -154,7 +157,7 @@ export default function App() {
 
   const onTune = () => work('جاري تحليل الصوت وتصحيح النغمات...', () => {
     const o = autotune(orig.current.getChannelData(0), orig.current.sampleRate, +tune.key,
-      tune.scale.split(',').map(Number), tune.str / 100, tune.spd / 100);
+      tune.scale.split(',').map(Number), tune.str / 100, tune.spd / 100, tune.vib / 100);
     cur.current = mkBuf(o, orig.current.sampleRate); bump();
     setMsg('تم الأوتوتيون. اضغط تشغيل، وغيّر المفتاح أو السرعة لو مش عاجبك.');
   });
@@ -177,7 +180,7 @@ export default function App() {
       const wav = await exportWav(cur.current, harm.current, fx, hvol);
       await saveWav(wav, 'my-voice.wav');
       setMsg('تم تجهيز الملف my-voice.wav.');
-    } catch (e) { setMsg('تعذر تصدير الملف.'); }
+    } catch (e) { console.error(e); setMsg('تعذر تصدير الملف.'); }
     setBusy(false);
   };
 
@@ -187,7 +190,7 @@ export default function App() {
   return (
     <main>
       <h1>استوديو الصوت</h1>
-      <p className="sub">سجّل، نقّي، صحّح النغمات، ضيف هارموني وريڤيرب، وصدّر.</p>
+      <p className="sub">سجّل، نقّي، صحّح النغمات، ضيف هارموني وتأثيرات، وصدّر.</p>
 
       <div className="card">
         <canvas ref={cv} width="600" height="220" />
@@ -203,13 +206,8 @@ export default function App() {
       </div>
 
       <div className="card">
-        <Slider label="كمية الريڤيرب" value={fx.mix} onChange={(v) => setFx({ ...fx, mix: v })} />
-        <Slider label="حجم الغرفة (بالعشر ثانية)" value={fx.size} unit="" min={3} max={60} onChange={(v) => { setFx({ ...fx, size: v }); player.current.setSize(v); }} />
-        <Slider label="قطع الترددات المنخفضة" value={fx.hp} unit=" هرتز" min={20} max={300} onChange={(v) => setFx({ ...fx, hp: v })} />
-      </div>
-
-      <div className="card">
-        <Slider label="قوة التنقية" value={ns} min={10} onChange={setNs} />
+        <h2>1. تنقية الصوت</h2>
+        <Slider label="قوة التنقية" unit="%" value={ns} min={10} onChange={setNs} />
         <div className="row">
           <button id="tune" disabled={off} onClick={onDenoise}>تنقية قوية</button>
           <button disabled={off || !hasNs} onClick={onUndoDenoise}>تراجع عن التنقية</button>
@@ -221,10 +219,12 @@ export default function App() {
       </div>
 
       <div className="card">
+        <h2>2. الأوتوتيون</h2>
         <Select label="المفتاح" value={tune.key} onChange={(v) => setTune({ ...tune, key: v })} options={KEYS.map((k, i) => [k, String(i)])} />
         <Select label="السلم" value={tune.scale} onChange={(v) => setTune({ ...tune, scale: v })} options={SCALES} />
-        <Slider label="قوة التصحيح" value={tune.str} onChange={(v) => setTune({ ...tune, str: v })} />
-        <Slider label="سرعة التصحيح (أعلى = تأثير روبوتي)" value={tune.spd} min={5} onChange={(v) => setTune({ ...tune, spd: v })} />
+        <Slider label="قوة التصحيح" unit="%" value={tune.str} onChange={(v) => setTune({ ...tune, str: v })} />
+        <Slider label="سرعة التصحيح (أعلى = روبوتي)" unit="%" value={tune.spd} min={5} onChange={(v) => setTune({ ...tune, spd: v })} />
+        <Slider label="الاحتفاظ بالاهتزاز الطبيعي" unit="%" value={tune.vib} onChange={(v) => setTune({ ...tune, vib: v })} />
         <div className="row">
           <button id="tune" disabled={off} onClick={onTune}>طبّق الأوتوتيون</button>
           <button disabled={off || !hasTuned} onClick={onOrig}>الصوت قبل الأوتوتيون</button>
@@ -232,12 +232,40 @@ export default function App() {
       </div>
 
       <div className="card">
+        <h2>3. الهارموني</h2>
         <Select label="طبقة الهارموني" value={hint} onChange={setHint} options={INTERVALS} />
-        <Slider label="مستوى صوت الهارموني" value={hvol} onChange={setHvol} />
+        <Slider label="مستوى صوت الهارموني" unit="%" value={hvol} onChange={setHvol} />
         <div className="row">
           <button disabled={off} onClick={onHarm}>ولّد الهارموني</button>
           <button disabled={off || !harm.current} onClick={onHarmClear}>إزالة الهارموني</button>
         </div>
+      </div>
+
+      <div className="card">
+        <h2>4. جودة الصوت (ماستر)</h2>
+        <div className="presets">
+          {PRESETS.map(([name, p]) => (
+            <button key={name} onClick={() => setFx((f) => ({ ...f, ...p }))}>{name}</button>
+          ))}
+        </div>
+        <Slider label="قطع الترددات المنخفضة" unit=" هرتز" value={fx.hp} min={20} max={300} onChange={F('hp')} />
+        <Slider label="تخفيف الاحتقان (250 هرتز)" unit=" dB" value={fx.mud} min={-8} max={4} step={0.5} onChange={F('mud')} />
+        <Slider label="وضوح الصوت (3 كيلو)" unit=" dB" value={fx.pres} min={-4} max={8} step={0.5} onChange={F('pres')} />
+        <Slider label="لمعة (10 كيلو)" unit=" dB" value={fx.air} min={-4} max={8} step={0.5} onChange={F('air')} />
+        <Slider label="الكومبريسور: الحد" unit=" dB" value={fx.cthr} min={-40} max={-6} onChange={F('cthr')} />
+        <Slider label="الكومبريسور: النسبة" unit=":1" value={fx.cratio} min={1} max={10} step={0.5} onChange={F('cratio')} />
+        <Slider label="تخفيف حرف السين (De-esser)" unit="%" value={fx.deess} onChange={F('deess')} />
+        <div className="sub small">يوجد Limiter في النهاية يمنع التشويش تلقائياً.</div>
+      </div>
+
+      <div className="card">
+        <h2>5. الريڤيرب والإيكو</h2>
+        <Select label="نوع الريڤيرب" value={fx.rtype} onChange={F('rtype')} options={REVERB_TYPES} />
+        <Slider label="كمية الريڤيرب" unit="%" value={fx.mix} onChange={F('mix')} />
+        <Slider label="طول الريڤيرب (بالعُشر ثانية)" value={fx.size} min={3} max={60} onChange={F('size')} />
+        <Slider label="كمية الإيكو" unit="%" value={fx.echo} onChange={F('echo')} />
+        <Slider label="زمن الإيكو" unit=" مللي ث" value={fx.etime} min={80} max={600} step={10} onChange={F('etime')} />
+        <Slider label="تكرار الإيكو" unit="%" value={fx.efb} onChange={F('efb')} />
       </div>
 
       <div className="card">

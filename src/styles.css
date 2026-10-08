@@ -26,3 +26,6 @@ select{font:inherit;background:var(--bg);color:var(--ink);border:1px solid var(-
 .small{margin:10px 0 0;font-size:.85rem}
 select{font:inherit;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
 #tune{background:var(--acc);border-color:var(--acc);color:#fff}
+h2{font-size:1.05rem;margin:0 0 6px}
+.presets{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px}
+.presets button{flex:1 1 40%}
