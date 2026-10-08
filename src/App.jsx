@@ -55,7 +55,7 @@ export default function App() {
   const [playing, setPlaying] = useState(false);
   const [busy, setBusy] = useState(false);
   const [ver, setVer] = useState(0);
-  const [micNs, setMicNs] = useState(true);
+  const [micNs, setMicNs] = useState(false);
   const [fx, setFx] = useState(DEFAULT_FX);
   const [ns, setNs] = useState(70);
   const [tune, setTune] = useState({ key: '0', scale: SCALES[0][1], str: 100, spd: 70, vib: 40 });
@@ -127,6 +127,13 @@ export default function App() {
     if (!cur.current) return;
     setPlaying(true);
     await player.current.play(cur.current, harm.current, fx, hvol, () => setPlaying(false));
+  };
+
+  const onPlayRaw = async () => {
+    if (playing) { stopPlay(); return; }
+    if (!raw.current) return;
+    setPlaying(true);
+    await player.current.playDry(raw.current, () => setPlaying(false));
   };
 
   const onDenoise = () => work('جاري تنقية الصوت...', () => {
@@ -204,9 +211,12 @@ export default function App() {
           <button id="rec" disabled={busy} onClick={onRecord}>{recording ? 'إيقاف' : 'تسجيل'}</button>
           <button id="play" disabled={off} onClick={onPlay}>{playing ? 'إيقاف' : 'تشغيل'}</button>
         </div>
+        <div className="row">
+          <button disabled={off} onClick={onPlayRaw}>سماع التسجيل الخام (بدون تأثيرات)</button>
+        </div>
         <label className="chk">
           <input type="checkbox" checked={micNs} onChange={(e) => setMicNs(e.target.checked)} />
-          تقليل الضوضاء الأساسي من الميكروفون
+          تقليل الضوضاء من الموبايل نفسه (لو سمعت تكتكة، سيبه مقفول)
         </label>
         <div id="msg">{msg}</div>
       </div>

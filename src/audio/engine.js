@@ -2,7 +2,7 @@ import { toWav } from '../dsp/wav.js';
 
 let ctx = null;
 export function getCtx() {
-  if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
+  if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'playback' });
   return ctx;
 }
 
@@ -108,6 +108,17 @@ export function createPlayer() {
       if (hg) hg.gain.value = hvol / 100;
     },
     setReverb(type, size) { if (chain) chain.setReverb(type, size); },
+    // تشغيل التسجيل الخام مباشرة بدون أي تأثيرات (للمقارنة والتشخيص)
+    async playDry(buf, onEnd) {
+      const c = getCtx();
+      await c.resume();
+      stop();
+      src = c.createBufferSource();
+      src.buffer = buf;
+      src.connect(c.destination);
+      src.onended = () => { src = null; onEnd && onEnd(); };
+      src.start();
+    },
     async play(buf, harm, p, hvol, onEnd) {
       const c = getCtx();
       await c.resume();
