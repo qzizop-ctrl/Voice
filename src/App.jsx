@@ -137,6 +137,21 @@ export default function App() {
     setMsg('رجعت للتسجيل الأصلي بدون تنقية.');
   };
 
+  const onRnn = async () => {
+    stopPlay(); setBusy(true); setMsg('جاري التنقية بالذكاء الاصطناعي (RNNoise)...');
+    try {
+      const { rnnoiseClean, RNNOISE_RATE } = await import('./dsp/rnnoise.js');
+      const o = await rnnoiseClean(raw.current);
+      orig.current = cur.current = mkBuf(o, RNNOISE_RATE);
+      harm.current = null; bump();
+      setMsg('تمت التنقية بـ RNNoise. اضغط تشغيل.');
+    } catch (e) {
+      console.error(e);
+      setMsg('تعذر تشغيل RNNoise على هذا الجهاز. استخدم التنقية القوية العادية.');
+    }
+    setBusy(false);
+  };
+
   const onTune = () => work('جاري تحليل الصوت وتصحيح النغمات...', () => {
     const o = autotune(orig.current.getChannelData(0), orig.current.sampleRate, +tune.key,
       tune.scale.split(',').map(Number), tune.str / 100, tune.spd / 100);
@@ -199,7 +214,10 @@ export default function App() {
           <button id="tune" disabled={off} onClick={onDenoise}>تنقية قوية</button>
           <button disabled={off || !hasNs} onClick={onUndoDenoise}>تراجع عن التنقية</button>
         </div>
-        <div className="sub small">تعمل أفضل لو في التسجيل لحظات صمت قصيرة. طبّقها قبل الأوتوتيون.</div>
+        <div className="row">
+          <button disabled={off} onClick={onRnn}>تنقية بالذكاء الاصطناعي (RNNoise)</button>
+        </div>
+        <div className="sub small">التنقية القوية تناسب الضوضاء الثابتة. RNNoise أقوى مع الضوضاء المتغيرة والكلام الخلفي. طبّق أيًّا منهما قبل الأوتوتيون.</div>
       </div>
 
       <div className="card">

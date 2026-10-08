@@ -3,7 +3,7 @@
 تطبيق React + Capacitor لأندرويد: تسجيل، تنقية ضوضاء، أوتوتيون، هارموني، ريڤيرب، وتصدير WAV.
 
 ## هيكل المشروع
-- `src/dsp/` خوارزميات الصوت (pitch.js, denoise.js, wav.js)
+- `src/dsp/` خوارزميات الصوت (pitch.js, denoise.js, rnnoise.js, wav.js)
 - `src/audio/engine.js` التسجيل والتشغيل وسلسلة التأثيرات والتصدير
 - `src/App.jsx` الواجهة
 - `.github/workflows/android.yml` بناء ملف APK تلقائياً على GitHub
