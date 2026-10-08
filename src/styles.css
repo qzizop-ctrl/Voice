@@ -1,0 +1,28 @@
+
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#eef0f7;--ink:#1b1b2f;--mute:#6b6f86;--card:#fff;--line:#d7daea;--acc:#5a3df0;--rec:#e5334b;--wave:#5a3df0}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12121c;--ink:#ecedf8;--mute:#9a9db5;--card:#1c1c2b;--line:#2d2d44;--acc:#8b78ff;--rec:#ff5a70;--wave:#8b78ff}}
+:root[data-theme="dark"]{--bg:#12121c;--ink:#ecedf8;--mute:#9a9db5;--card:#1c1c2b;--line:#2d2d44;--acc:#8b78ff;--rec:#ff5a70;--wave:#8b78ff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI",Tahoma,"Noto Naskh Arabic",sans-serif;line-height:1.6}
+main{max-width:520px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:1.4rem;margin:8px 0 4px}
+p.sub{color:var(--mute);margin:0 0 18px;font-size:.92rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+canvas{width:100%;height:110px;display:block;border-radius:8px;background:var(--bg)}
+.row{display:flex;gap:10px;margin-top:12px}
+button{flex:1;font:inherit;font-weight:600;padding:14px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+button:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+button:disabled{opacity:.4;cursor:not-allowed}
+#rec{background:var(--rec);border-color:var(--rec);color:#fff}
+#play{background:var(--acc);border-color:var(--acc);color:#fff}
+label{display:flex;justify-content:space-between;font-size:.92rem;margin:14px 0 4px}
+input[type=range]{width:100%;accent-color:var(--acc)}
+.chk{display:flex;align-items:center;gap:8px;margin-top:14px;font-size:.92rem}
+select{font:inherit;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+#tune{background:var(--acc);border-color:var(--acc);color:#fff}
+#msg{color:var(--mute);font-size:.88rem;min-height:1.4em;margin-top:10px}
+.small{margin:10px 0 0;font-size:.85rem}
+select{font:inherit;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+#tune{background:var(--acc);border-color:var(--acc);color:#fff}
