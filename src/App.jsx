@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPlayer, exportWav, getCtx, startRecording } from './audio/engine.js';
 import { autotune, detect, harmShifts, makeAllowed, render } from './dsp/pitch.js';
-import { denoise } from './dsp/denoise.js';
+import { denoise, gate, normalize } from './dsp/denoise.js';
 import { DEFAULT_FX, PRESETS, REVERB_TYPES } from './presets.js';
 import { saveWav } from './export.js';
 
@@ -58,6 +58,7 @@ export default function App() {
   const [micNs, setMicNs] = useState(false);
   const [fx, setFx] = useState(DEFAULT_FX);
   const [ns, setNs] = useState(70);
+  const [gateOn, setGateOn] = useState(true);
   const [tune, setTune] = useState({ key: '0', scale: SCALES[0][1], str: 100, spd: 70, vib: 40 });
   const [hint, setHint] = useState('2');
   const [hvol, setHvol] = useState(60);
@@ -137,10 +138,23 @@ export default function App() {
   };
 
   const onDenoise = () => work('جاري تنقية الصوت...', () => {
-    const o = denoise(raw.current.getChannelData(0), ns / 100);
-    orig.current = cur.current = mkBuf(o, raw.current.sampleRate);
+    const sr = raw.current.sampleRate;
+    let o = denoise(raw.current.getChannelData(0), ns / 100);
+    if (gateOn) o = gate(o, sr, ns / 100);
+    orig.current = cur.current = mkBuf(o, sr);
     harm.current = null; bump();
     setMsg('تمت التنقية. اضغط تشغيل. لو الصوت اتأثر زيادة قلل القوة وجرّب تاني.');
+  });
+
+  // تحسين تلقائي: رفع المستوى ثم تنقية ثم إسكات الفراغات
+  const onAuto = () => work('جاري التحسين التلقائي...', () => {
+    const sr = raw.current.sampleRate;
+    let o = normalize(raw.current.getChannelData(0), 0.7, 10);
+    o = denoise(o, 0.7);
+    o = gate(o, sr, 0.6);
+    orig.current = cur.current = mkBuf(o, sr);
+    harm.current = null; bump();
+    setMsg('تم التحسين التلقائي (رفع المستوى + تنقية + إسكات الفراغات). اضغط تشغيل.');
   });
   const onUndoDenoise = () => {
     stopPlay(); orig.current = cur.current = raw.current; harm.current = null; bump();
@@ -223,9 +237,17 @@ export default function App() {
 
       <div className="card">
         <h2>1. تنقية الصوت</h2>
-        <Slider label="قوة التنقية" unit="%" value={ns} min={10} onChange={setNs} />
         <div className="row">
-          <button id="tune" disabled={off} onClick={onDenoise}>تنقية قوية</button>
+          <button id="tune" disabled={off} onClick={onAuto}>تحسين تلقائي (موصى به)</button>
+        </div>
+        <div className="sub small">يرفع مستوى الصوت لو كان واطي، ويشيل الضوضاء، ويهدّي الفراغات بين الكلام. ابدأ بيه.</div>
+        <Slider label="قوة التنقية" unit="%" value={ns} min={10} onChange={setNs} />
+        <label className="chk">
+          <input type="checkbox" checked={gateOn} onChange={(e) => setGateOn(e.target.checked)} />
+          إسكات الفراغات بين الكلام
+        </label>
+        <div className="row">
+          <button disabled={off} onClick={onDenoise}>تنقية قوية</button>
           <button disabled={off || !hasNs} onClick={onUndoDenoise}>تراجع عن التنقية</button>
         </div>
         <div className="row">

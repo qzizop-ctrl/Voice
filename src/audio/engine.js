@@ -211,5 +211,5 @@ export async function exportWav(buf, harm, p, hvol) {
     s2.buffer = harm; g.gain.value = hvol / 100;
     s2.connect(g); g.connect(chain.input); s2.start();
   }
-  return toWav(await oc.startRendering());
+  return toWav(await oc.startRendering(), 0.9); // رفع/ضبط المستوى لقمة -1 dBFS تقريباً
 }
